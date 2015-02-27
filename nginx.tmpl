@@ -31,11 +31,14 @@ proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $proxy_x_forwarded_proto;
 
+
 server {
 	listen 80 default_server;
 	server_name _; # This is just an invalid value which will never trigger on a real hostname.
 	return 503;
 }
+
+{{ $master_host := .Env.HOST_URL }}
 
 {{ range $host, $containers := groupByMulti $ "Env.VIRTUAL_HOST" "," }}
 
@@ -92,7 +95,7 @@ server {
 }
 
 server {
-	server_name {{ $host }};
+	server_name {{ $host }}.dev *.{{ $host }}.dev{{ if $master_host }} {{ $host }}.{{ $master_host }} *.{{ $host }}.{{ $master_host }}{{ end }};
 	listen 443 ssl;
 
 	ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -113,12 +116,13 @@ server {
 		auth_basic	"Restricted {{ $host }}";
 		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
 		{{ end }}
+		add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet";
 	}
 }
 {{ else }}
 
 server {
-	server_name {{ $host }};
+	server_name {{ $host }}.dev *.{{ $host }}.dev{{ if $master_host }} {{ $host }}.{{ $master_host }} *.{{ $host }}.{{ $master_host }}{{ end }};
 
 	location / {
 		proxy_pass {{ $proto }}://{{ $host }};
@@ -126,11 +130,12 @@ server {
 		auth_basic	"Restricted {{ $host }}";
 		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
 		{{ end }}
+		add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet";
 	}
 }
 
 server {
-	server_name {{ $host }};
+	server_name {{ $host }}.dev *.{{ $host }}.dev{{ if $master_host }} {{ $host }}.{{ $master_host }} *.{{ $host }}.{{ $master_host }}{{ end }};
 	listen 443 ssl;
 	return 503;
 
